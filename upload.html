@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ICONNET Monitoring Asset Parser — Upload Excel</title>
+  <meta name="description" content="Upload file Excel (.xlsx/.xls) monitoring ICONNET multi-sheet. Parsing otomatis per sheet & ekspor .md / .zip.">
+  
+  <!-- Styling & Design System -->
+  <link rel="stylesheet" href="css/style.css">
+
+  <!-- CDN Dependencies: SheetJS, JSZip, FileSaver -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/file-saver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Navbar -->
+    <header class="navbar">
+      <a href="index.html" class="brand">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">
+          <h1>ICONNET Asset Parser</h1>
+          <span>Monitoring Jaringan FAT → ONT</span>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html" class="nav-item">📋 Paste Teks</a>
+        <a href="upload.html" class="nav-item active">📁 Upload Excel</a>
+      </nav>
+    </header>
+
+    <!-- Main Upload Card -->
+    <main class="card">
+      <div class="card-header">
+        <h2 class="card-title"><span>📁</span> Upload File Excel Monitoring (.xlsx / .xls)</h2>
+        <div class="prefix-wrapper">
+          <label for="prefix-input" class="form-label" style="margin-bottom:0; white-space:nowrap;">Prefix ID:</label>
+          <input type="text" id="prefix-input" class="input-text" value="SPLT_" placeholder="e.g. SPLT_">
+        </div>
+      </div>
+
+      <!-- Drag & Drop Dropzone -->
+      <div id="dropzone" class="dropzone">
+        <div class="dropzone-icon">📊</div>
+        <div class="dropzone-text">Tarik & Lepas File Excel di sini, atau klik untuk memilih file</div>
+        <div class="dropzone-hint">Format yang didukung: .xlsx, .xls (Multi-sheet otomatis diproses)</div>
+        <input type="file" id="file-input" accept=".xlsx, .xls" style="display: none;">
+      </div>
+    </main>
+
+    <!-- Preview Output Section -->
+    <section id="preview-section" class="card" style="display: none;">
+      <div class="card-header">
+        <div>
+          <h2 class="card-title"><span>📊</span> Hasil Parsing Excel Multi-Sheet</h2>
+          <span id="current-sheet-title" style="font-size: 13px; color: var(--brand-primary); font-weight: 600;"></span>
+        </div>
+        <div class="action-bar">
+          <button id="btn-copy-sheet" class="btn btn-secondary btn-sm">
+            <span>📋</span> Copy
+          </button>
+          <button id="btn-download-sheet" class="btn btn-secondary btn-sm">
+            <span>⬇️</span> Download Sheet .md
+          </button>
+          <button id="btn-download-zip" class="btn btn-success btn-sm">
+            <span>📦</span> Download Semua (.zip)
+          </button>
+        </div>
+      </div>
+
+      <!-- Sheet Tabs Header -->
+      <div id="tabs-container" class="tabs-header"></div>
+
+      <!-- Statistics Grid -->
+      <div id="stats-container"></div>
+
+      <!-- Category Breakdown -->
+      <div id="breakdown-container"></div>
+
+      <!-- Table Header Controls & Filter -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary);">Tabel Hierarki Sheet Ini</h3>
+        <div class="action-bar">
+          <button class="btn btn-secondary btn-sm filter-btn active" data-filter="all">Semua</button>
+          <button class="btn btn-secondary btn-sm filter-btn" data-filter="problem">Hanya Bermasalah</button>
+          <button class="btn btn-secondary btn-sm filter-btn" data-filter="normal">Normal</button>
+        </div>
+      </div>
+
+      <!-- Structured Data Table -->
+      <div id="table-container"></div>
+    </section>
+  </div>
+
+  <!-- JavaScript Module -->
+  <script type="module" src="js/upload-page.js"></script>
+</body>
+</html>

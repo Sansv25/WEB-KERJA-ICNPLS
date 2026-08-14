@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ICONNET Monitoring Asset Parser — Paste Teks</title>
+  <meta name="description" content="Aplikasi parsing data monitoring jaringan ICONNET/PLN Icon+ dari Excel/TSV menjadi hierarki FAT-ONT terstruktur & laporan Markdown.">
+  
+  <!-- Styling & Design System -->
+  <link rel="stylesheet" href="css/style.css">
+  
+  <!-- CDN Scripts for FileSaver -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/file-saver.js/2.0.5/FileSaver.min.js"></script>
+</head>
+<body>
+  <div class="container">
+    <!-- Navbar -->
+    <header class="navbar">
+      <a href="index.html" class="brand">
+        <div class="brand-icon">⚡</div>
+        <div class="brand-text">
+          <h1>ICONNET Asset Parser</h1>
+          <span>Monitoring Jaringan FAT → ONT</span>
+        </div>
+      </a>
+      <nav class="nav-links">
+        <a href="index.html" class="nav-item active">📋 Paste Teks</a>
+        <a href="upload.html" class="nav-item">📁 Upload Excel</a>
+      </nav>
+    </header>
+
+    <!-- Main Input Card -->
+    <main class="card">
+      <div class="card-header">
+        <h2 class="card-title"><span>📋</span> Input Paste Data Excel</h2>
+        <div class="prefix-wrapper">
+          <label for="prefix-input" class="form-label" style="margin-bottom:0; white-space:nowrap;">Prefix ID:</label>
+          <input type="text" id="prefix-input" class="input-text" value="SPLT_" placeholder="e.g. SPLT_">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="paste-input" class="form-label">Tempel (Paste) data mentah Excel di sini (Tab-separated):</label>
+        <textarea id="paste-input" class="textarea" placeholder="Contoh format:
+SPLT_MTRF027
+SPLT_MTRA247	offline	-27.9
+SPLT_MTRA248	-24.5	online
+SPLT_MTRA249	los	-28.1"></textarea>
+      </div>
+
+      <div class="action-bar" style="justify-content: space-between;">
+        <button id="btn-sample" class="btn btn-secondary">
+          <span>💡</span> Muat Contoh Data
+        </button>
+        <button id="btn-parse" class="btn btn-primary">
+          <span>🚀</span> Parse Data Sekarang
+        </button>
+      </div>
+    </main>
+
+    <!-- Preview Output Section -->
+    <section id="preview-section" class="card" style="display: none;">
+      <div class="card-header">
+        <h2 class="card-title"><span>📊</span> Hasil Parsing & Ringkasan</h2>
+        <div class="action-bar">
+          <button id="btn-copy" class="btn btn-secondary btn-sm">
+            <span>📋</span> Copy
+          </button>
+          <button id="btn-download-md" class="btn btn-success btn-sm">
+            <span>⬇️</span> Download .md
+          </button>
+        </div>
+      </div>
+
+      <!-- Statistics Grid -->
+      <div id="stats-container"></div>
+
+      <!-- Category Breakdown -->
+      <div id="breakdown-container"></div>
+
+      <!-- Table Header Controls & Filter -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary);">Tabel Hierarki FAT → ONT</h3>
+        <div class="action-bar">
+          <button class="btn btn-secondary btn-sm filter-btn active" data-filter="all">Semua</button>
+          <button class="btn btn-secondary btn-sm filter-btn" data-filter="problem">Hanya Bermasalah</button>
+          <button class="btn btn-secondary btn-sm filter-btn" data-filter="normal">Normal</button>
+        </div>
+      </div>
+
+      <!-- Structured Data Table -->
+      <div id="table-container"></div>
+    </section>
+  </div>
+
+  <!-- JavaScript Module -->
+  <script type="module" src="js/paste-page.js"></script>
+</body>
+</html>
