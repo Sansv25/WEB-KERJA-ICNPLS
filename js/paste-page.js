@@ -1,27 +1,15 @@
 import { parseRawRows } from './parser.js';
-import { generateMarkdown, generateTSV, copyToClipboard, downloadMarkdownFile } from './export.js';
+import { generateMarkdown, generateTSV, copyToClipboard, downloadExcelFile } from './export.js';
 import { renderSummaryStats, renderCategoryBreakdown, renderDataTable, showToast } from './render.js';
 import { CONFIG } from './config.js';
 
 let currentParsedData = null;
 
-// Preset Data Contoh untuk Pengujian Instan
-const SAMPLE_PASTE_DATA = `SPLT_MTRF027
-SPLT_MTRA247	offline	-27.9
-SPLT_MTRA248	-24.5	online
-SPLT_MTRA249	los	-28.1
-SPLT_MTRA250	deaktif	
-SPLT_MTRF028
-SPLT_MTRA301	-23.1	-22.9
-SPLT_MTRA302	susspend 12/08	-29.0
-SPLT_MTRA303	dying gasp	of
-SPLT_MTRA304	-25.2	active`;
-
 document.addEventListener('DOMContentLoaded', () => {
   const pasteArea = document.getElementById('paste-input');
   const prefixInput = document.getElementById('prefix-input');
+  const dedupeCheckbox = document.getElementById('dedupe-checkbox');
   const btnParse = document.getElementById('btn-parse');
-  const btnSample = document.getElementById('btn-sample');
   
   const previewSection = document.getElementById('preview-section');
   const statsContainer = document.getElementById('stats-container');
@@ -29,7 +17,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const tableContainer = document.getElementById('table-container');
 
   const btnCopy = document.getElementById('btn-copy') || document.getElementById('btn-copy-md');
-  const btnDownload = document.getElementById('btn-download-md');
+  const btnDownloadXlsx = document.getElementById('btn-download-xlsx') || document.getElementById('btn-download-md');
 
   const filterBtns = document.querySelectorAll('.filter-btn');
 
@@ -39,10 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
   if (prefixInput) prefixInput.value = CONFIG.DEFAULT_PREFIX;
 
   // Biarkan textarea menggunakan perilaku paste native browser.
-  // Pindahkan logic auto-parse ke event listener 'input' setelah teks masuk ke textarea.
   pasteArea.addEventListener('input', () => {
     if (pasteArea.value.trim().length > 0) {
-      triggerParse(false); // Parse tanpa alert jika dipicu dari input
+      triggerParse(false);
     }
   });
 
@@ -54,11 +41,11 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Preset Sample Data Handler
-  if (btnSample) {
-    btnSample.addEventListener('click', () => {
-      pasteArea.value = SAMPLE_PASTE_DATA;
-      triggerParse(true);
+  if (dedupeCheckbox) {
+    dedupeCheckbox.addEventListener('change', () => {
+      if (pasteArea.value.trim().length > 0) {
+        triggerParse(false);
+      }
     });
   }
 
@@ -71,6 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function triggerParse(showAlertOnEmpty = true) {
     const rawText = pasteArea.value;
     const prefix = (prefixInput.value || CONFIG.DEFAULT_PREFIX).trim();
+    const isDeduplicate = dedupeCheckbox ? dedupeCheckbox.checked : true;
 
     if (!rawText.trim()) {
       if (showAlertOnEmpty) {
@@ -84,7 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const lines = rawText.split(/\r?\n/);
     const rows = lines.map(line => line.split('\t'));
 
-    currentParsedData = parseRawRows(rows, prefix);
+    currentParsedData = parseRawRows(rows, prefix, { deduplicate: isDeduplicate });
 
     // Show Preview Section
     previewSection.style.display = 'block';
@@ -114,13 +102,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Download Markdown Handler
-  if (btnDownload) {
-    btnDownload.addEventListener('click', () => {
+  // Download Excel (.xlsx) Handler
+  if (btnDownloadXlsx) {
+    btnDownloadXlsx.addEventListener('click', () => {
       if (!currentParsedData) return;
-      const mdText = generateMarkdown(currentParsedData, 'Paste Data');
-      downloadMarkdownFile('Monitoring_ICONNET_Paste.md', mdText);
-      showToast('File Markdown berhasil di-download!');
+      downloadExcelFile(currentParsedData, 'Monitoring_ICONNET_Kode_FAT');
+      showToast('File Excel (.xlsx) berhasil di-download!');
     });
   }
 

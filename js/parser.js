@@ -7,10 +7,15 @@ import { CONFIG } from './config.js';
  * @param {string} customPrefix - Asset ID prefix (default 'SPLT_')
  * @returns {Object} Parsed dataset containing items, statistics, and metadata
  */
-export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX) {
+export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX, options = {}) {
   const prefix = (customPrefix || CONFIG.DEFAULT_PREFIX).trim();
+  const isDeduplicate = typeof options === 'boolean' ? options : Boolean(options?.deduplicate);
+
   const ontList = [];
   const fatsMap = new Map(); // fatId -> { fatId, totalOnt: 0, problemOnt: 0 }
+  const flatCodes = []; // Array of clean extracted codes matching prefix
+  const seenFlatCodes = new Set();
+  const seenOntKeys = new Set();
 
   let currentFatId = '(Tanpa FAT)';
   let maxChecksCount = 0;
@@ -32,22 +37,48 @@ export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX) {
 
   for (let r = 0; r < rows.length; r++) {
     const row = rows[r];
-    if (!row || row.length === 0) continue;
+    if (!row || !Array.isArray(row) || row.length === 0) continue;
 
-    const cell0 = String(row[0] || '').trim();
-    if (!cell0) continue; // Baris tanpa ID di kolom 0 diabaikan
+    // Scan baris untuk menemukan semua sel yang diawali dengan prefix ID
+    const codeCells = [];
+    row.forEach(cellVal => {
+      const valStr = String(cellVal ?? '').trim();
+      if (valStr.toUpperCase().startsWith(prefix.toUpperCase())) {
+        codeCells.push(valStr);
 
-    // Cek apakah cell0 cocok dengan prefix (case-insensitive check)
-    const matchesPrefix0 = cell0.toUpperCase().startsWith(prefix.toUpperCase());
-    if (!matchesPrefix0) continue;
+        const valUpper = valStr.toUpperCase();
+        if (isDeduplicate) {
+          if (!seenFlatCodes.has(valUpper)) {
+            seenFlatCodes.add(valUpper);
+            flatCodes.push(valStr);
+          }
+        } else {
+          flatCodes.push(valStr);
+        }
+      }
+    });
 
-    const cell1 = String(row[1] || '').trim();
+    if (codeCells.length === 0) continue;
+
+    // Cari index kolom pertama yang diawali dengan prefix ID
+    const codeIdx = row.findIndex(c => String(c ?? '').trim().toUpperCase().startsWith(prefix.toUpperCase()));
+    if (codeIdx === -1) continue;
+
+    const cell0 = String(row[codeIdx] ?? '').trim();
+    const cell1 = String(row[codeIdx + 1] ?? '').trim();
     const matchesPrefix1 = cell1.toUpperCase().startsWith(prefix.toUpperCase());
 
-    // KASUS A: Kolom 0 = FAT ID, Kolom 1 = ONT ID (Dataset 2-Kolom Kode Aset)
+    // KASUS A: Kolom codeIdx = FAT ID, Kolom codeIdx + 1 = ONT ID (Dataset 2-Kolom Kode Aset)
     if (matchesPrefix1) {
       const fatId = cell0;
       const ontId = cell1;
+      const ontKey = `${fatId}::${ontId}`;
+
+      if (isDeduplicate) {
+        if (!seenOntKeys.has(ontKey)) {
+          seenOntKeys.add(ontKey);
+        }
+      }
 
       if (!fatsMap.has(fatId)) {
         fatsMap.set(fatId, { fatId, totalOnt: 0, problemOnt: 0 });
@@ -55,18 +86,20 @@ export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX) {
       const fatStats = fatsMap.get(fatId);
       fatStats.totalOnt++;
 
-      // Kolom check dimulai dari index 2
-      const checkCells = row.slice(2);
-      // Abaikan trailing empty cells di ujung kanan
+      // Kolom check dimulai dari index codeIdx + 2
+      const checkCells = row.slice(codeIdx + 2);
       const lastNonEmptyIndex = findLastNonEmptyIndex(checkCells);
       const effectiveCheckCells = lastNonEmptyIndex >= 0 ? checkCells.slice(0, lastNonEmptyIndex + 1) : [];
 
-      const checks = effectiveCheckCells.map(cVal => {
+      const checks = [];
+      effectiveCheckCells.forEach(cVal => {
         const classified = classifyValue(cVal);
-        if (categoryBreakdown[classified.category] !== undefined) {
-          categoryBreakdown[classified.category]++;
+        if (classified.isCheck && classified.category !== CONFIG.CATEGORIES.IGNORED) {
+          if (categoryBreakdown[classified.category] !== undefined) {
+            categoryBreakdown[classified.category]++;
+          }
+          checks.push(classified);
         }
-        return classified;
       });
 
       if (checks.length > maxChecksCount) {
@@ -86,55 +119,48 @@ export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX) {
       continue;
     }
 
-    // KASUS B: Structure 1-Kolom Kode Aset (Merged Cell / Hierarki Baris)
-    const restCells = row.slice(1);
+    // KASUS B: Structure 1-Kolom Kode Aset
+    const restCells = row.slice(codeIdx + 1);
     const lastNonEmptyIndex = findLastNonEmptyIndex(restCells);
-    const hasDataInRest = lastNonEmptyIndex >= 0;
+    const effectiveCheckCells = lastNonEmptyIndex >= 0 ? restCells.slice(0, lastNonEmptyIndex + 1) : [];
 
-    if (!hasDataInRest) {
-      // Cek apakah cell0 adalah FAT parent atau ONT child tanpa check
-      const upper0 = cell0.toUpperCase();
-      const isExplicitFat = upper0.includes('MTRF') || upper0.includes('FAT') || upper0.includes('ODP');
-      const isExplicitOnt = upper0.includes('MTRA') || upper0.includes('ONT');
-
-      if (isExplicitFat || (!isExplicitOnt && fatsMap.size === 0)) {
-        // FAT Parent Baru
-        currentFatId = cell0;
-        if (!fatsMap.has(currentFatId)) {
-          fatsMap.set(currentFatId, { fatId: currentFatId, totalOnt: 0, problemOnt: 0 });
+    const checks = [];
+    effectiveCheckCells.forEach(cVal => {
+      const classified = classifyValue(cVal);
+      if (classified.isCheck && classified.category !== CONFIG.CATEGORIES.IGNORED) {
+        if (categoryBreakdown[classified.category] !== undefined) {
+          categoryBreakdown[classified.category]++;
         }
-      } else {
-        // ONT Child tanpa data check
-        if (!fatsMap.has(currentFatId)) {
-          fatsMap.set(currentFatId, { fatId: currentFatId, totalOnt: 0, problemOnt: 0 });
-        }
-        const fatStats = fatsMap.get(currentFatId);
-        fatStats.totalOnt++;
+        checks.push(classified);
+      }
+    });
 
-        ontList.push({
-          id: `ont-${ontList.length + 1}`,
-          fat_id: currentFatId,
-          ont_id: cell0,
-          checks: [],
-          has_problem: false
-        });
+    const upper0 = cell0.toUpperCase();
+    const isExplicitFat = upper0.includes('MTRF') || upper0.includes('FAT') || upper0.includes('ODP') || upper0.includes('SPLT_F');
+    const isExplicitOnt = upper0.includes('MTRA') || upper0.includes('ONT') || upper0.includes('SPLT_A');
+
+    if (isExplicitFat || (!isExplicitOnt && fatsMap.size === 0 && checks.length === 0)) {
+      // FAT Parent Baru
+      currentFatId = cell0;
+      if (!fatsMap.has(currentFatId)) {
+        fatsMap.set(currentFatId, { fatId: currentFatId, totalOnt: 0, problemOnt: 0 });
       }
     } else {
-      // ONT Child dengan data check di kolom 1..N
+      // ONT Child
+      const ontId = cell0;
+      const ontKey = `${currentFatId}::${ontId}`;
+
+      if (isDeduplicate) {
+        if (!seenOntKeys.has(ontKey)) {
+          seenOntKeys.add(ontKey);
+        }
+      }
+
       if (!fatsMap.has(currentFatId)) {
         fatsMap.set(currentFatId, { fatId: currentFatId, totalOnt: 0, problemOnt: 0 });
       }
       const fatStats = fatsMap.get(currentFatId);
       fatStats.totalOnt++;
-
-      const effectiveCheckCells = restCells.slice(0, lastNonEmptyIndex + 1);
-      const checks = effectiveCheckCells.map(cVal => {
-        const classified = classifyValue(cVal);
-        if (categoryBreakdown[classified.category] !== undefined) {
-          categoryBreakdown[classified.category]++;
-        }
-        return classified;
-      });
 
       if (checks.length > maxChecksCount) {
         maxChecksCount = checks.length;
@@ -146,7 +172,7 @@ export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX) {
       ontList.push({
         id: `ont-${ontList.length + 1}`,
         fat_id: currentFatId,
-        ont_id: cell0,
+        ont_id: ontId,
         checks: checks,
         has_problem: hasProblem
       });
@@ -158,8 +184,12 @@ export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX) {
     .filter(f => f.problemOnt > 0)
     .sort((a, b) => b.problemOnt - a.problemOnt);
 
-  // Buat struktur grup FAT -> ONTs untuk Mode B (1-kolom)
+  // Buat struktur grup FAT -> ONTs untuk Mode B
   const groupedFatsMap = new Map();
+  for (const fatId of fatsMap.keys()) {
+    groupedFatsMap.set(fatId, { fatId, onts: [] });
+  }
+
   ontList.forEach(item => {
     if (!groupedFatsMap.has(item.fat_id)) {
       groupedFatsMap.set(item.fat_id, { fatId: item.fat_id, onts: [] });
@@ -173,14 +203,15 @@ export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX) {
 
   return {
     prefixUsed: prefix,
-    totalFat: fatsMap.size,
-    totalOnt: ontList.length,
+    totalFat: fatsMap.size || (flatCodes.length > 0 ? flatCodes.length : 0),
+    totalOnt: ontList.length || flatCodes.length,
     problemOntCount,
     normalOntCount,
     maxChecksCount,
     categoryBreakdown,
     topProblemFats,
     groupedFats,
+    flatCodes,
     items: ontList
   };
 }

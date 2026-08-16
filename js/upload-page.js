@@ -1,5 +1,5 @@
 import { parseRawRows } from './parser.js';
-import { generateMarkdown, generateTSV, copyToClipboard, downloadMarkdownFile, downloadAllAsZip } from './export.js';
+import { generateMarkdown, generateTSV, copyToClipboard, downloadExcelFile, downloadAllSheetsAsExcel } from './export.js';
 import { renderSummaryStats, renderCategoryBreakdown, renderDataTable, showToast } from './render.js';
 import { CONFIG } from './config.js';
 
@@ -10,6 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const fileInput = document.getElementById('file-input');
   const dropzone = document.getElementById('dropzone');
   const prefixInput = document.getElementById('prefix-input');
+  const dedupeCheckbox = document.getElementById('dedupe-checkbox');
 
   const previewSection = document.getElementById('preview-section');
   const tabsContainer = document.getElementById('tabs-container');
@@ -18,11 +19,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const tableContainer = document.getElementById('table-container');
 
   const btnCopySheet = document.getElementById('btn-copy-sheet');
-  const btnDownloadSheet = document.getElementById('btn-download-sheet');
-  const btnDownloadZip = document.getElementById('btn-download-zip');
+  const btnDownloadXlsx = document.getElementById('btn-download-xlsx') || document.getElementById('btn-download-sheet');
+  const btnDownloadAllXlsx = document.getElementById('btn-download-all-xlsx') || document.getElementById('btn-download-zip');
 
   const currentSheetTitle = document.getElementById('current-sheet-title');
   const filterBtns = document.querySelectorAll('.filter-btn');
+
+  let currentFile = null;
 
   if (!fileInput || !dropzone) return;
 
@@ -31,9 +34,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // File Input Change
   fileInput.addEventListener('change', (e) => {
     if (e.target.files.length > 0) {
-      processFile(e.target.files[0]);
+      currentFile = e.target.files[0];
+      processFile(currentFile);
     }
   });
+
+  if (dedupeCheckbox) {
+    dedupeCheckbox.addEventListener('change', () => {
+      if (currentFile) {
+        processFile(currentFile);
+      }
+    });
+  }
 
   // Drag & Drop Handlers
   dropzone.addEventListener('click', () => fileInput.click());
@@ -51,7 +63,8 @@ document.addEventListener('DOMContentLoaded', () => {
     e.preventDefault();
     dropzone.classList.remove('dragover');
     if (e.dataTransfer.files.length > 0) {
-      processFile(e.dataTransfer.files[0]);
+      currentFile = e.dataTransfer.files[0];
+      processFile(currentFile);
     }
   });
 
@@ -68,6 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = new Uint8Array(e.target.result);
         const workbook = window.XLSX.read(data, { type: 'array' });
         const prefix = (prefixInput.value || CONFIG.DEFAULT_PREFIX).trim();
+        const isDeduplicate = dedupeCheckbox ? dedupeCheckbox.checked : true;
 
         activeWorkbookSheets = [];
 
@@ -78,7 +92,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const rawRows = window.XLSX.utils.sheet_to_json(worksheet, { header: 1, raw: false, defval: '' });
           
           // Parse sheet independently
-          const parsedData = parseRawRows(rawRows, prefix);
+          const parsedData = parseRawRows(rawRows, prefix, { deduplicate: isDeduplicate });
           const markdown = generateMarkdown(parsedData, sheetName);
 
           activeWorkbookSheets.push({
@@ -117,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activeWorkbookSheets.forEach((item, index) => {
       const btn = document.createElement('button');
       btn.className = `tab-btn ${index === activeSheetIndex ? 'active' : ''}`;
-      btn.innerHTML = `📄 ${item.sheetName} (${item.parsedData.totalOnt} ONT)`;
+      btn.innerHTML = `📄 ${item.sheetName} (${item.parsedData.totalOnt} Kode)`;
       btn.addEventListener('click', () => {
         activeSheetIndex = index;
         renderTabs();
@@ -154,22 +168,22 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Download .md per Sheet
-  if (btnDownloadSheet) {
-    btnDownloadSheet.addEventListener('click', () => {
+  // Download .xlsx per Sheet
+  if (btnDownloadXlsx) {
+    btnDownloadXlsx.addEventListener('click', () => {
       const current = activeWorkbookSheets[activeSheetIndex];
       if (!current) return;
-      downloadMarkdownFile(`${current.sheetName}.md`, current.markdown);
-      showToast(`File ${current.sheetName}.md di-download!`);
+      downloadExcelFile(current.parsedData, `${current.sheetName}_Kode_FAT`);
+      showToast(`File ${current.sheetName}.xlsx berhasil di-download!`);
     });
   }
 
-  // Download All as .zip
-  if (btnDownloadZip) {
-    btnDownloadZip.addEventListener('click', () => {
+  // Download Semua Sheet sebagai Multi-Tab Workbook (.xlsx)
+  if (btnDownloadAllXlsx) {
+    btnDownloadAllXlsx.addEventListener('click', () => {
       if (activeWorkbookSheets.length === 0) return;
-      downloadAllAsZip(activeWorkbookSheets, 'ICONNET_Monitoring_Sheets.zip');
-      showToast('Mengunduh bundel .zip...');
+      downloadAllSheetsAsExcel(activeWorkbookSheets, 'ICONNET_Monitoring_Semua_Sheet');
+      showToast('Mengunduh file Excel multi-sheet (.xlsx)...');
     });
   }
 

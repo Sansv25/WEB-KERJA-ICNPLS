@@ -18,16 +18,14 @@ export function generateMarkdown(parsedData, sheetName = 'Hasil Parsing') {
   md += `> **Tanggal Parsing:** ${timestamp}  \n`;
   md += `> **Prefix ID:** \`${parsedData.prefixUsed}\`  \n\n`;
 
-  // --- MODE B: 1-Kolom List Kode (Tanpa Data Check) ---
+  // --- MODE B: 1-Kolom List Kode Bersih (Tanpa Data Check) ---
   if (!hasChecks) {
-    md += `## Detail Kode Aset (FAT → ONT)\n\n`;
+    const flatCodes = parsedData.flatCodes || [];
+    md += `## Detail Kode Aset (${parsedData.prefixUsed}...)\n\n`;
     md += `| Kode Aset |\n`;
     md += `| --- |\n`;
-    (groupedFats || []).forEach(group => {
-      md += `| **\`${group.fatId}\`** |\n`;
-      group.onts.forEach(ont => {
-        md += `| \`${ont.ont_id}\` |\n`;
-      });
+    flatCodes.forEach(code => {
+      md += `| \`${code}\` |\n`;
     });
     md += `\n---\n*Di-generate secara otomatis oleh Web App Parsing Data Monitoring Aset ICONNET*\n`;
     return md;
@@ -111,16 +109,10 @@ export function generateTSV(parsedData) {
   const { maxChecksCount, items, groupedFats } = parsedData;
   const hasChecks = (maxChecksCount || 0) > 0;
 
-  // --- MODE B: 1-Kolom List Kode Aset ---
+  // --- MODE B: 1-Kolom List Kode Aset Bersih ---
   if (!hasChecks) {
-    const lines = [];
-    (groupedFats || []).forEach(group => {
-      lines.push(group.fatId);
-      group.onts.forEach(ont => {
-        lines.push(ont.ont_id);
-      });
-    });
-    return lines.join('\n');
+    const flatCodes = parsedData.flatCodes || [];
+    return flatCodes.join('\n');
   }
 
   // --- MODE A: Multi-Kolom TSV ---
@@ -195,6 +187,201 @@ export function downloadMarkdownFile(filename, content) {
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
   }
+}
+
+/**
+ * Downloads parsed dataset as a styled Excel (.xlsx) file.
+ * Column A Row 1 header is 'Kode FAT' with background #FFC000 and bold text.
+ * @param {Object} parsedData - Data object from parseRawRows()
+ * @param {string} filename - Output filename (without extension)
+ */
+export function downloadExcelFile(parsedData, filename = 'Monitoring_ICONNET_Kode_FAT') {
+  if (!window.XLSX) {
+    alert('Library SheetJS (xlsx) belum dimuat. Pastikan terhubung ke internet.');
+    return;
+  }
+
+  const { flatCodes, maxChecksCount, items } = parsedData;
+  const hasChecks = (maxChecksCount || 0) > 0;
+  const sanitizedFilename = sanitizeFilename(filename) + (filename.endsWith('.xlsx') ? '' : '.xlsx');
+
+  const aoa = [];
+
+  if (!hasChecks) {
+    // Mode B: 1-Kolom Kode FAT Bersih
+    aoa.push(['Kode FAT']);
+    (flatCodes || []).forEach(code => {
+      aoa.push([code]);
+    });
+  } else {
+    // Mode A: Multi-Kolom Tabel
+    const headers = ['Kode FAT', 'ONT ID'];
+    for (let i = 1; i <= maxChecksCount; i++) {
+      headers.push(`Check ${i}`);
+    }
+    headers.push('Status Risk');
+    aoa.push(headers);
+
+    (items || []).forEach(item => {
+      const rowVals = [item.fat_id, item.ont_id];
+      for (let i = 0; i < maxChecksCount; i++) {
+        const check = item.checks[i];
+        rowVals.push(check ? check.raw_value : '');
+      }
+      rowVals.push(item.has_problem ? 'PROBLEM' : 'NORMAL');
+      aoa.push(rowVals);
+    });
+  }
+
+  const ws = window.XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 28 }, { wch: 25 }, { wch: 15 }, { wch: 15 }, { wch: 15 }];
+
+  // 1. Header (Baris 1 / r=0): Background Putih (#FFFFFF), Font Bold Hitam
+  const headerCols = hasChecks ? (maxChecksCount + 3) : 1;
+  for (let c = 0; c < headerCols; c++) {
+    const cellRef = window.XLSX.utils.encode_cell({ r: 0, c: c });
+    if (ws[cellRef]) {
+      ws[cellRef].s = {
+        fill: {
+          patternType: 'solid',
+          fgColor: { rgb: 'FFFFFF' }
+        },
+        font: {
+          bold: true,
+          color: { rgb: '000000' },
+          sz: 11
+        },
+        alignment: {
+          horizontal: 'center',
+          vertical: 'center'
+        }
+      };
+    }
+  }
+
+  // 2. Baris Kode-Kode FAT di bawahnya (Baris A2 ke bawah): Background Orange (#FFC000), Font Bold Hitam
+  for (let r = 1; r < aoa.length; r++) {
+    const cellRef = window.XLSX.utils.encode_cell({ r: r, c: 0 });
+    if (ws[cellRef]) {
+      ws[cellRef].s = {
+        fill: {
+          patternType: 'solid',
+          fgColor: { rgb: 'FFC000' }
+        },
+        font: {
+          bold: true,
+          color: { rgb: '000000' },
+          sz: 11
+        },
+        alignment: {
+          horizontal: 'left',
+          vertical: 'center'
+        }
+      };
+    }
+  }
+
+  const wb = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(wb, ws, 'Kode FAT');
+  window.XLSX.writeFile(wb, sanitizedFilename);
+}
+
+/**
+ * Bundles multi-sheet parsed dataset into a single multi-tab .xlsx workbook.
+ * @param {Array<{ sheetName: string, parsedData: Object }>} sheets 
+ * @param {string} filename 
+ */
+export function downloadAllSheetsAsExcel(sheets, filename = 'Monitoring_ICONNET_Semua_Sheet.xlsx') {
+  if (!window.XLSX) {
+    alert('Library XLSX belum dimuat. Pastikan terhubung ke internet.');
+    return;
+  }
+
+  const sanitizedFilename = sanitizeFilename(filename) + (filename.endsWith('.xlsx') ? '' : '.xlsx');
+  const wb = window.XLSX.utils.book_new();
+
+  sheets.forEach((s, idx) => {
+    const { flatCodes, maxChecksCount, items } = s.parsedData;
+    const hasChecks = (maxChecksCount || 0) > 0;
+    const sheetTitle = sanitizeFilename(s.sheetName || `Sheet${idx + 1}`).substring(0, 30);
+
+    const aoa = [];
+    if (!hasChecks) {
+      aoa.push(['Kode FAT']);
+      (flatCodes || []).forEach(code => {
+        aoa.push([code]);
+      });
+    } else {
+      const headers = ['Kode FAT', 'ONT ID'];
+      for (let i = 1; i <= maxChecksCount; i++) {
+        headers.push(`Check ${i}`);
+      }
+      headers.push('Status Risk');
+      aoa.push(headers);
+
+      (items || []).forEach(item => {
+        const rowVals = [item.fat_id, item.ont_id];
+        for (let i = 0; i < maxChecksCount; i++) {
+          const check = item.checks[i];
+          rowVals.push(check ? check.raw_value : '');
+        }
+        rowVals.push(item.has_problem ? 'PROBLEM' : 'NORMAL');
+        aoa.push(rowVals);
+      });
+    }
+
+    const ws = window.XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = [{ wch: 28 }, { wch: 25 }, { wch: 15 }, { wch: 15 }];
+
+    // Header baris 1 putih
+    const headerCols = hasChecks ? (maxChecksCount + 3) : 1;
+    for (let c = 0; c < headerCols; c++) {
+      const cellRef = window.XLSX.utils.encode_cell({ r: 0, c: c });
+      if (ws[cellRef]) {
+        ws[cellRef].s = {
+          fill: {
+            patternType: 'solid',
+            fgColor: { rgb: 'FFFFFF' }
+          },
+          font: {
+            bold: true,
+            color: { rgb: '000000' },
+            sz: 11
+          },
+          alignment: {
+            horizontal: 'center',
+            vertical: 'center'
+          }
+        };
+      }
+    }
+
+    // Baris Kode FAT di Kolom A orange #FFC000
+    for (let r = 1; r < aoa.length; r++) {
+      const cellRef = window.XLSX.utils.encode_cell({ r: r, c: 0 });
+      if (ws[cellRef]) {
+        ws[cellRef].s = {
+          fill: {
+            patternType: 'solid',
+            fgColor: { rgb: 'FFC000' }
+          },
+          font: {
+            bold: true,
+            color: { rgb: '000000' },
+            sz: 11
+          },
+          alignment: {
+            horizontal: 'left',
+            vertical: 'center'
+          }
+        };
+      }
+    }
+
+    window.XLSX.utils.book_append_sheet(wb, ws, sheetTitle);
+  });
+
+  window.XLSX.writeFile(wb, sanitizedFilename);
 }
 
 /**

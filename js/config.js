@@ -13,7 +13,8 @@ export const CONFIG = {
     ANOMALI: 'anomali',
     ONLINE: 'online',
     REDAMAN: 'redaman',
-    EMPTY: 'empty'
+    EMPTY: 'empty',
+    IGNORED: 'ignored'
   },
 
   // Keywords & Typo aliases for matching categories (case-insensitive substring/regex check)

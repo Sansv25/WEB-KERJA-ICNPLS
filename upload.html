@@ -9,8 +9,8 @@
   <!-- Styling & Design System -->
   <link rel="stylesheet" href="css/style.css">
 
-  <!-- CDN Dependencies: SheetJS, JSZip, FileSaver -->
-  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+  <!-- CDN Dependencies: xlsx-js-style (supports cell colors & styles in Excel), JSZip, FileSaver -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/file-saver.js/2.0.5/FileSaver.min.js"></script>
 </head>
@@ -35,9 +35,15 @@
     <main class="card">
       <div class="card-header">
         <h2 class="card-title"><span>📁</span> Upload File Excel Monitoring (.xlsx / .xls)</h2>
-        <div class="prefix-wrapper">
-          <label for="prefix-input" class="form-label" style="margin-bottom:0; white-space:nowrap;">Prefix ID:</label>
-          <input type="text" id="prefix-input" class="input-text" value="SPLT_" placeholder="e.g. SPLT_">
+        <div class="prefix-wrapper" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="prefix-input" class="form-label" style="margin-bottom:0; white-space:nowrap;">Prefix ID:</label>
+            <input type="text" id="prefix-input" class="input-text" value="SPLT_" placeholder="e.g. SPLT_" style="max-width: 130px;">
+          </div>
+          <label class="checkbox-wrapper" style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-primary); user-select: none; background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-card);">
+            <input type="checkbox" id="dedupe-checkbox" checked style="width: 16px; height: 16px; accent-color: var(--brand-primary); cursor: pointer;">
+            <span>🧹 Bersihkan Duplikat</span>
+          </label>
         </div>
       </div>
 
@@ -61,11 +67,11 @@
           <button id="btn-copy-sheet" class="btn btn-secondary btn-sm">
             <span>📋</span> Copy
           </button>
-          <button id="btn-download-sheet" class="btn btn-secondary btn-sm">
-            <span>⬇️</span> Download Sheet .md
+          <button id="btn-download-xlsx" class="btn btn-success btn-sm">
+            <span>📊</span> Download .xlsx
           </button>
-          <button id="btn-download-zip" class="btn btn-success btn-sm">
-            <span>📦</span> Download Semua (.zip)
+          <button id="btn-download-all-xlsx" class="btn btn-primary btn-sm">
+            <span>📦</span> Download Semua Sheet (.xlsx)
           </button>
         </div>
       </div>

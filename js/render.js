@@ -92,11 +92,11 @@ export function renderDataTable(containerEl, parsedData, filterMode = 'all') {
     filterControls.style.display = hasChecks ? 'flex' : 'none';
   }
 
-  // --- MODE B: 1-Kolom List Sederhana (Tanpa Data Check) ---
+  // --- MODE B: 1-Kolom List Kode Bersih (Tanpa Data Check) ---
   if (!hasChecks) {
-    const groupedFats = parsedData.groupedFats || [];
-    if (groupedFats.length === 0) {
-      containerEl.innerHTML = `<div style="padding:32px; text-align:center; color: var(--text-muted);">Tidak ada data aset yang ditemukan.</div>`;
+    const flatCodes = parsedData.flatCodes || [];
+    if (flatCodes.length === 0) {
+      containerEl.innerHTML = `<div style="padding:32px; text-align:center; color: var(--text-muted);">Tidak ada kode aset dengan prefix '${escapeHtml(parsedData.prefixUsed)}' yang ditemukan.</div>`;
       return;
     }
 
@@ -105,31 +105,20 @@ export function renderDataTable(containerEl, parsedData, filterMode = 'all') {
         <table class="data-table">
           <thead>
             <tr>
-              <th>Kode Aset (FAT → ONT)</th>
+              <th style="background-color: #ffffff; color: #000000; font-weight: 800; font-size: 13.5px; border-bottom: 2px solid #cbd5e1;">Kode FAT</th>
             </tr>
           </thead>
           <tbody>
     `;
 
-    groupedFats.forEach(group => {
-      // Baris Grup FAT (Penanda visual beda)
+    flatCodes.forEach(code => {
       html += `
-        <tr class="fat-group-header">
-          <td style="font-weight: 800; background: rgba(2, 132, 199, 0.12); color: #38bdf8; font-size: 13.5px; border-bottom: 1px solid rgba(2, 132, 199, 0.2);">
-            📁 ${escapeHtml(group.fatId)}
+        <tr>
+          <td style="background-color: #FFC000; color: #000000; font-weight: 700; font-size: 13px; border-bottom: 1px solid rgba(0, 0, 0, 0.12);">
+            ${escapeHtml(code)}
           </td>
         </tr>
       `;
-      // Baris ONT di bawahnya dalam kolom yang sama
-      group.onts.forEach(ont => {
-        html += `
-          <tr>
-            <td style="padding-left: 32px; color: var(--text-primary);">
-              └─ ${escapeHtml(ont.ont_id)}
-            </td>
-          </tr>
-        `;
-      });
     });
 
     html += `</tbody></table></div>`;
