@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ICONNET Monitoring Asset Parser — Upload Excel</title>
-  <meta name="description" content="Upload file Excel (.xlsx/.xls) monitoring ICONNET multi-sheet. Parsing otomatis per sheet & ekspor .md / .zip.">
+  <title>ICONNET Monitoring Asset Parser — Audit Cluster</title>
+  <meta name="description" content="Audit data cluster FAT/ONT ICONNET, validasi otomatis kesesuaian cluster mayoritas, dan deteksi posisi perbedaan (sekitaran atas/tengah/bawah).">
   
   <!-- Styling & Design System -->
   <link rel="stylesheet" href="css/style.css">
@@ -28,42 +28,62 @@
       </a>
       <nav class="nav-links">
         <a href="index.html" class="nav-item"><span class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">content_paste</span> Paste Teks</a>
-        <a href="upload.html" class="nav-item active"><span class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">upload_file</span> Upload Excel</a>
+        <a href="upload.html" class="nav-item active"><span class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">verified</span> Audit Cluster</a>
       </nav>
     </header>
 
-    <!-- Main Upload Card -->
+    <!-- Main Audit Input Card -->
     <main class="card">
       <div class="card-header">
-        <h2 class="card-title"><span class="material-symbols-outlined">upload_file</span> Upload File Excel Monitoring (.xlsx / .xls)</h2>
+        <h2 class="card-title"><span class="material-symbols-outlined">verified</span> Audit & Validasi Cluster FAT</h2>
         <div class="prefix-wrapper" style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">
           <div style="display: flex; align-items: center; gap: 8px;">
             <label for="prefix-input" class="form-label" style="margin-bottom:0; white-space:nowrap;">Prefix ID:</label>
             <input type="text" id="prefix-input" class="input-text" value="SPLT_" placeholder="e.g. SPLT_" style="max-width: 130px;">
           </div>
-          <label class="checkbox-wrapper" style="display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text-primary); user-select: none; background: rgba(15, 23, 42, 0.6); padding: 8px 12px; border-radius: var(--radius-md); border: 1px solid var(--border-card);">
-            <input type="checkbox" id="dedupe-checkbox" checked style="width: 16px; height: 16px; accent-color: var(--brand-primary); cursor: pointer;">
-            <span style="display: inline-flex; align-items: center; gap: 4px;"><span class="material-symbols-outlined" style="font-size: 16px;">cleaning_services</span> Bersihkan Duplikat</span>
-          </label>
         </div>
       </div>
 
-      <!-- Drag & Drop Dropzone -->
-      <div id="dropzone" class="dropzone">
-        <div class="dropzone-icon"><span class="material-symbols-outlined" style="font-size: 48px;">analytics</span></div>
-        <div class="dropzone-text">Tarik & Lepas File Excel di sini, atau klik untuk memilih file</div>
-        <div class="dropzone-hint">Format yang didukung: .xlsx, .xls (Multi-sheet otomatis diproses)</div>
-        <input type="file" id="file-input" accept=".xlsx, .xls" style="display: none;">
+      <!-- Input Switcher Tabs -->
+      <div class="tabs-header" style="margin-bottom: 16px;">
+        <button id="tab-btn-paste" class="tab-btn active"><span class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">content_paste</span> Tempel Data Tabel / TSV</button>
+        <button id="tab-btn-file" class="tab-btn"><span class="material-symbols-outlined" style="font-size:16px; vertical-align:middle;">upload_file</span> Upload File Excel (.xlsx)</button>
+      </div>
+
+      <!-- Option 1: Paste Textarea Input -->
+      <div id="paste-input-container" class="form-group">
+        <label for="paste-input" class="form-label">Tempel (Paste) data tabel Excel berisi Kode FAT, Status, dan Cluster di sini:</label>
+        <textarea id="paste-input" class="textarea" placeholder="Contoh format input:
+Kode FAT	Status	Cluster *	Validasi
+SPLT_MTRA346	Aktif	SANDUBAYA	OK
+SPLT_MTRA347	Aktif	SANDUBAYA	OK
+SPLT_MTRA348	Aktif	AMPENAN	OK
+SPLT_MTRA349	Aktif	SANDUBAYA	OK"></textarea>
+        <div class="action-bar" style="justify-content: flex-end; margin-top: 14px;">
+          <button id="btn-audit" class="btn btn-primary">
+            <span class="material-symbols-outlined">analytics</span> Audit Cluster Sekarang
+          </button>
+        </div>
+      </div>
+
+      <!-- Option 2: Drag & Drop Dropzone (Hidden by default or toggled) -->
+      <div id="dropzone-container" style="display: none;">
+        <div id="dropzone" class="dropzone">
+          <div class="dropzone-icon"><span class="material-symbols-outlined" style="font-size: 48px;">upload_file</span></div>
+          <div class="dropzone-text">Tarik & Lepas File Excel di sini, atau klik untuk memilih file</div>
+          <div class="dropzone-hint">Format yang didukung: .xlsx, .xls</div>
+          <input type="file" id="file-input" accept=".xlsx, .xls" style="display: none;">
+        </div>
       </div>
     </main>
 
-    <!-- Preview Output Section -->
+    <!-- Audit Output Section -->
     <section id="preview-section" class="card" style="display: none;">
       <div class="card-header">
         <div>
           <h2 class="card-title" style="display: flex; align-items: center; flex-wrap: wrap; gap: 10px;">
             <span style="display: flex; align-items: center; gap: 8px;">
-              <span class="material-symbols-outlined">analytics</span> Hasil Parsing & Ringkasan
+              <span class="material-symbols-outlined">analytics</span> Hasil Audit & Validasi Cluster
             </span>
             <span id="total-fat-badge" class="badge-fat-count" style="display: none;">
               <span class="material-symbols-outlined">hub</span> Total <strong id="total-fat-count">0</strong> Kode FAT
@@ -73,33 +93,30 @@
         </div>
         <div class="action-bar">
           <button id="btn-copy-sheet" class="btn btn-secondary btn-sm">
-            <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span> Copy
+            <span class="material-symbols-outlined" style="font-size: 16px;">content_copy</span> Copy TSV
           </button>
           <button id="btn-download-xlsx" class="btn btn-success btn-sm">
-            <span class="material-symbols-outlined" style="font-size: 16px;">download</span> Download .xlsx
-          </button>
-          <button id="btn-download-all-xlsx" class="btn btn-primary btn-sm">
-            <span class="material-symbols-outlined" style="font-size: 16px;">archive</span> Download Semua Sheet (.xlsx)
+            <span class="material-symbols-outlined" style="font-size: 16px;">download</span> Download Excel Audit (.xlsx)
           </button>
         </div>
       </div>
 
-      <!-- Sheet Tabs Header -->
-      <div id="tabs-container" class="tabs-header"></div>
+      <!-- Sheet Tabs Header for multi-sheet Excel files -->
+      <div id="tabs-container" class="tabs-header" style="display: none;"></div>
+
+      <!-- Audit Summary Banner Alert Box -->
+      <div id="audit-alert-container"></div>
 
       <!-- Statistics Grid -->
       <div id="stats-container"></div>
 
-      <!-- Category Breakdown -->
-      <div id="breakdown-container"></div>
-
       <!-- Table Header Controls & Filter -->
       <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
-        <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary);">Tabel Hierarki Sheet Ini</h3>
+        <h3 style="font-size: 15px; font-weight: 700; color: var(--text-primary);">Tabel Audit Data Cluster</h3>
         <div class="action-bar">
           <button class="btn btn-secondary btn-sm filter-btn active" data-filter="all">Semua</button>
-          <button class="btn btn-secondary btn-sm filter-btn" data-filter="problem">Hanya Bermasalah</button>
-          <button class="btn btn-secondary btn-sm filter-btn" data-filter="normal">Normal</button>
+          <button class="btn btn-secondary btn-sm filter-btn" data-filter="mismatch">Hanya Perbedaan</button>
+          <button class="btn btn-secondary btn-sm filter-btn" data-filter="valid">Hanya OK</button>
         </div>
       </div>
 

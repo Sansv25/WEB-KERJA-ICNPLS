@@ -418,6 +418,92 @@ export async function downloadAllAsZip(sheets, zipName = 'ICONNET_Monitoring_MD.
 }
 
 /**
+ * Generates TSV text from cluster audit result
+ * @param {Object} auditResult 
+ * @returns {string} TSV string
+ */
+export function generateAuditTSV(auditResult) {
+  const records = auditResult?.auditedRecords || [];
+  const lines = ['Kode FAT\tStatus\tCluster\tValidasi\tPosisi'];
+
+  records.forEach(rec => {
+    lines.push(`${rec.fatId}\t${rec.status}\t${rec.cluster}\t${rec.validation}\t${rec.position}`);
+  });
+
+  return lines.join('\n');
+}
+
+/**
+ * Downloads cluster audit result as a styled Excel file (.xlsx) with highlight on mismatches.
+ * @param {Object} auditResult 
+ * @param {string} filename 
+ */
+export function downloadAuditExcelFile(auditResult, filename = 'Hasil_Audit_Cluster_FAT') {
+  if (!window.XLSX) {
+    alert('Library SheetJS (xlsx) belum dimuat. Pastikan terhubung ke internet.');
+    return;
+  }
+
+  const sanitizedFilename = sanitizeFilename(filename) + (filename.endsWith('.xlsx') ? '' : '.xlsx');
+  const records = auditResult?.auditedRecords || [];
+
+  const aoa = [['Kode FAT', 'Status', 'Cluster *', 'Validasi', 'Posisi']];
+
+  records.forEach(rec => {
+    aoa.push([
+      rec.fatId,
+      rec.status || 'Aktif',
+      rec.cluster || '',
+      rec.validation || 'OK',
+      rec.position || '-'
+    ]);
+  });
+
+  const ws = window.XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch: 24 }, { wch: 15 }, { wch: 22 }, { wch: 15 }, { wch: 20 }];
+
+  // 1. Header Styling (Row 1): White background, bold text
+  for (let c = 0; c < 5; c++) {
+    const cellRef = window.XLSX.utils.encode_cell({ r: 0, c: c });
+    if (ws[cellRef]) {
+      ws[cellRef].s = {
+        fill: { patternType: 'solid', fgColor: { rgb: '1E293B' } },
+        font: { bold: true, color: { rgb: 'FFFFFF' }, sz: 11 },
+        alignment: { horizontal: 'center', vertical: 'center' }
+      };
+    }
+  }
+
+  // 2. Data Rows Styling
+  for (let r = 1; r < aoa.length; r++) {
+    const rec = records[r - 1];
+    const isMismatch = rec && rec.validation === 'PERBEDAAN';
+
+    for (let c = 0; c < 5; c++) {
+      const cellRef = window.XLSX.utils.encode_cell({ r: r, c: c });
+      if (ws[cellRef]) {
+        if (isMismatch) {
+          ws[cellRef].s = {
+            fill: { patternType: 'solid', fgColor: { rgb: 'FFD1D1' } },
+            font: { bold: true, color: { rgb: '9C0006' }, sz: 11 },
+            alignment: { horizontal: c === 3 || c === 4 ? 'center' : 'left', vertical: 'center' }
+          };
+        } else {
+          ws[cellRef].s = {
+            font: { color: { rgb: '000000' }, sz: 11 },
+            alignment: { horizontal: c === 3 || c === 4 ? 'center' : 'left', vertical: 'center' }
+          };
+        }
+      }
+    }
+  }
+
+  const wb = window.XLSX.utils.book_new();
+  window.XLSX.utils.book_append_sheet(wb, ws, 'Audit Cluster');
+  window.XLSX.writeFile(wb, sanitizedFilename);
+}
+
+/**
  * Sanitizes filename to remove invalid characters
  */
 export function sanitizeFilename(name) {
@@ -426,3 +512,4 @@ export function sanitizeFilename(name) {
     .replace(/[/\\?%*:|"<>]/g, '_')
     .replace(/\s+/g, '_');
 }
+
