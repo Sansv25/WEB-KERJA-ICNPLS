@@ -91,7 +91,7 @@ export function generateMarkdown(parsedData, sheetName = 'Hasil Parsing') {
         rowVals.push('-');
       }
     }
-    rowVals.push(item.has_problem ? '⚠️ PROBLEM' : '✅ NORMAL');
+    rowVals.push(item.has_problem ? 'PROBLEM' : 'NORMAL');
     md += `| ${rowVals.join(' | ')} |\n`;
   });
 

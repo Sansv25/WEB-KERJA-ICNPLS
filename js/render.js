@@ -3,9 +3,23 @@
  */
 
 /**
+ * Renders FAT count badge next to Hasil Parsing header
+ */
+export function renderFatBadge(parsedData) {
+  const badgeEl = document.getElementById('total-fat-badge');
+  const countEl = document.getElementById('total-fat-count');
+  if (badgeEl && countEl) {
+    const totalFat = parsedData?.totalFat || 0;
+    countEl.textContent = totalFat;
+    badgeEl.style.display = 'inline-flex';
+  }
+}
+
+/**
  * Renders statistical cards (Total FAT, Total ONT, Problem, Normal)
  */
 export function renderSummaryStats(containerEl, parsedData) {
+  renderFatBadge(parsedData);
   if (!containerEl) return;
 
   const { totalFat, totalOnt, problemOntCount, normalOntCount, maxChecksCount } = parsedData;
@@ -81,6 +95,7 @@ export function renderCategoryBreakdown(containerEl, parsedData) {
  * Renders structured data: Mode A (Multi-column Table) or Mode B (1-Column Code List)
  */
 export function renderDataTable(containerEl, parsedData, filterMode = 'all') {
+  renderFatBadge(parsedData);
   if (!containerEl) return;
 
   const maxChecks = parsedData.maxChecksCount || 0;
@@ -170,8 +185,8 @@ export function renderDataTable(containerEl, parsedData, filterMode = 'all') {
     }
 
     const statusBadge = item.has_problem
-      ? `<span class="badge badge-loss">⚠️ PROBLEM</span>`
-      : `<span class="badge badge-online">✅ NORMAL</span>`;
+      ? `<span class="badge badge-loss"><span class="material-symbols-outlined" style="font-size:14px; vertical-align:middle;">warning</span> PROBLEM</span>`
+      : `<span class="badge badge-online"><span class="material-symbols-outlined" style="font-size:14px; vertical-align:middle;">check_circle</span> NORMAL</span>`;
 
     html += `<td>${statusBadge}</td></tr>`;
   });
@@ -192,7 +207,7 @@ export function showToast(message, duration = 2500) {
     document.body.appendChild(toastEl);
   }
 
-  toastEl.innerHTML = `<span>✨</span> <span>${escapeHtml(message)}</span>`;
+  toastEl.innerHTML = `<span class="material-symbols-outlined" style="font-size:18px;">check_circle</span> <span>${escapeHtml(message)}</span>`;
   toastEl.classList.add('show');
 
   setTimeout(() => {

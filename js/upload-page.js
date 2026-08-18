@@ -131,7 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
     activeWorkbookSheets.forEach((item, index) => {
       const btn = document.createElement('button');
       btn.className = `tab-btn ${index === activeSheetIndex ? 'active' : ''}`;
-      btn.innerHTML = `📄 ${item.sheetName} (${item.parsedData.totalOnt} Kode)`;
+      btn.innerHTML = `<span class="material-symbols-outlined" style="font-size:15px; vertical-align:middle; margin-right:4px;">description</span> ${item.sheetName} (${item.parsedData.totalOnt} Kode)`;
       btn.addEventListener('click', () => {
         activeSheetIndex = index;
         renderTabs();

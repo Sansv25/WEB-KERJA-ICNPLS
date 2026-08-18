@@ -68,9 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Split text into 2D Matrix (lines by \n, columns by \t)
+    // Split text into 2D Matrix (lines by \n, columns by \t or fallback separators)
     const lines = rawText.split(/\r?\n/);
-    const rows = lines.map(line => line.split('\t'));
+    const rows = lines.map(line => {
+      if (line.includes('\t')) return line.split('\t');
+      if (line.includes(';')) return line.split(';');
+      if (line.includes('|')) return line.split('|');
+      return line.split(/\s{2,}/);
+    });
 
     currentParsedData = parseRawRows(rows, prefix, { deduplicate: isDeduplicate });
 

@@ -36,13 +36,16 @@ export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX, options
   }
 
   for (let r = 0; r < rows.length; r++) {
-    const row = rows[r];
-    if (!row || !Array.isArray(row) || row.length === 0) continue;
+    const rawRow = rows[r];
+    if (!rawRow || !Array.isArray(rawRow) || rawRow.length === 0) continue;
+
+    // Sanitize surrounding quotes and whitespace from all cell values in row
+    const row = rawRow.map(c => sanitizeCellStr(c));
 
     // Scan baris untuk menemukan semua sel yang diawali dengan prefix ID
     const codeCells = [];
     row.forEach(cellVal => {
-      const valStr = String(cellVal ?? '').trim();
+      const valStr = cellVal;
       if (valStr.toUpperCase().startsWith(prefix.toUpperCase())) {
         codeCells.push(valStr);
 
@@ -61,11 +64,11 @@ export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX, options
     if (codeCells.length === 0) continue;
 
     // Cari index kolom pertama yang diawali dengan prefix ID
-    const codeIdx = row.findIndex(c => String(c ?? '').trim().toUpperCase().startsWith(prefix.toUpperCase()));
+    const codeIdx = row.findIndex(c => c.toUpperCase().startsWith(prefix.toUpperCase()));
     if (codeIdx === -1) continue;
 
-    const cell0 = String(row[codeIdx] ?? '').trim();
-    const cell1 = String(row[codeIdx + 1] ?? '').trim();
+    const cell0 = row[codeIdx] || '';
+    const cell1 = row[codeIdx + 1] || '';
     const matchesPrefix1 = cell1.toUpperCase().startsWith(prefix.toUpperCase());
 
     // KASUS A: Kolom codeIdx = FAT ID, Kolom codeIdx + 1 = ONT ID (Dataset 2-Kolom Kode Aset)
@@ -201,10 +204,14 @@ export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX, options
   const problemOntCount = ontList.filter(o => o.has_problem).length;
   const normalOntCount = ontList.length - problemOntCount;
 
+  const hasChecks = (maxChecksCount || 0) > 0;
+  const totalFatCount = hasChecks ? (fatsMap.size || flatCodes.length) : flatCodes.length;
+  const totalOntCount = hasChecks ? ontList.length : flatCodes.length;
+
   return {
     prefixUsed: prefix,
-    totalFat: fatsMap.size || (flatCodes.length > 0 ? flatCodes.length : 0),
-    totalOnt: ontList.length || flatCodes.length,
+    totalFat: totalFatCount,
+    totalOnt: totalOntCount,
     problemOntCount,
     normalOntCount,
     maxChecksCount,
@@ -214,6 +221,17 @@ export function parseRawRows(rows, customPrefix = CONFIG.DEFAULT_PREFIX, options
     flatCodes,
     items: ontList
   };
+}
+
+/**
+ * Sanitizes cell text by removing hidden unicode characters, outer quotation marks, and extra whitespace
+ */
+export function sanitizeCellStr(val) {
+  let str = String(val ?? '')
+    .replace(/[\uFEFF\u200B\u200C\u200D\u00A0]/g, ' ')
+    .trim();
+  str = str.replace(/^["'`“”‘’\s]+|["'`“”‘’\s]+$/g, '').trim();
+  return str;
 }
 
 function findLastNonEmptyIndex(arr) {
